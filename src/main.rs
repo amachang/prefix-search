@@ -1,8 +1,9 @@
-use std::{fs, collections::HashMap, path::{Path, PathBuf}, process::exit};
+use std::{fs, collections::HashMap, path::{Path, PathBuf}, process::exit, io::Write};
 use anyhow::Result;
 use dirs::config_dir;
 use serde::{Deserialize, Serialize};
 use clap::{crate_name, Parser};
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 #[derive(Debug, thiserror::Error)]
 enum Error {
@@ -12,6 +13,8 @@ enum Error {
     CategoryNotFound(String),
     #[error("Could not get file name for path: {0}")]
     CouldntGetFileName(PathBuf),
+    #[error("Could not get parent dir for path: {0}")]
+    CouldntGetParentDir(PathBuf),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -52,6 +55,19 @@ fn main() -> Result<()> {
     };
     let category = config.categories.get(&opts.search_category).ok_or(Error::CategoryNotFound(opts.search_category))?;
     let term = opts.search_term;
+
+    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+
+    let mut matched_color = ColorSpec::new();
+    matched_color.set_fg(Some(Color::Green));
+    matched_color.set_bold(true);
+    let mut unmatched_color = ColorSpec::new();
+    unmatched_color.set_bold(true);
+    let mut parent_dir_color = ColorSpec::new();
+    parent_dir_color.set_dimmed(true);
+
+    let mut n_found = 0;
+
     for dir in &category.dirs {
         log::debug!("Searching in dir: {}", dir);
         let paths = walk_dir(dir);
@@ -59,11 +75,23 @@ fn main() -> Result<()> {
         for path in paths {
             let filename = path.file_name().ok_or(Error::CouldntGetFileName(path.clone()))?;
             let filename = filename.to_string_lossy();
+            let parent_dir = path.parent().ok_or(Error::CouldntGetParentDir(path.clone()))?;
             if filename.starts_with(&term) {
-                println!("{}", path.display());
+                let matched_str = &filename[0..term.len()];
+                let unmatched_str = &filename[term.len()..];
+
+                stdout.set_color(&matched_color)?;
+                write!(&mut stdout, "{}", matched_str)?;
+                stdout.set_color(&unmatched_color)?;
+                write!(&mut stdout, "{}", unmatched_str)?;
+                stdout.set_color(&parent_dir_color)?;
+                writeln!(&mut stdout, " ({})", parent_dir.display())?;
+                stdout.reset()?;
+                n_found += 1;
             }
         }
     }
+    println!("Found {} files", n_found);
     Ok(())
 }
 
