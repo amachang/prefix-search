@@ -13,8 +13,6 @@ enum Error {
     CategoryNotFound(String),
     #[error("Could not get file name for path: {0}")]
     CouldntGetFileName(PathBuf),
-    #[error("Could not get parent dir for path: {0}")]
-    CouldntGetParentDir(PathBuf),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -63,8 +61,8 @@ fn main() -> Result<()> {
     matched_color.set_bold(true);
     let mut unmatched_color = ColorSpec::new();
     unmatched_color.set_bold(true);
-    let mut parent_dir_color = ColorSpec::new();
-    parent_dir_color.set_dimmed(true);
+    let mut path_color = ColorSpec::new();
+    path_color.set_dimmed(true);
 
     let mut n_found = 0;
 
@@ -75,7 +73,6 @@ fn main() -> Result<()> {
         for path in paths {
             let filename = path.file_name().ok_or(Error::CouldntGetFileName(path.clone()))?;
             let filename = filename.to_string_lossy();
-            let parent_dir = path.parent().ok_or(Error::CouldntGetParentDir(path.clone()))?;
             if filename.starts_with(&term) {
                 let matched_str = &filename[0..term.len()];
                 let unmatched_str = &filename[term.len()..];
@@ -84,8 +81,8 @@ fn main() -> Result<()> {
                 write!(&mut stdout, "{}", matched_str)?;
                 stdout.set_color(&unmatched_color)?;
                 write!(&mut stdout, "{}", unmatched_str)?;
-                stdout.set_color(&parent_dir_color)?;
-                writeln!(&mut stdout, " ({})", parent_dir.display())?;
+                stdout.set_color(&path_color)?;
+                writeln!(&mut stdout, " ({})", path.display())?;
                 stdout.reset()?;
                 n_found += 1;
             }
