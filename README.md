@@ -7,3 +7,9 @@ if needs to add new search pattern, add config in `~/.config/prefix-search/confi
 dirs = ["/home/username/Videos", "/mnt/another-disk/Videos"]
 ```
 
+and use:
+
+```sh
+prefix-search video "video-prefix"
+```
+
