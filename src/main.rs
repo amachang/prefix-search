@@ -35,7 +35,8 @@ struct CategoryConfig {
 #[derive(Parser)]
 struct Opts {
     search_category: String,
-    search_term: String,
+    #[clap(required = true)]
+    search_terms: Vec<String>,
 }
 
 fn main() -> Result<()> {
@@ -47,12 +48,14 @@ fn main() -> Result<()> {
         Ok(opts) => opts,
         Err(_) => {
             let categories = config.categories.keys().cloned().collect::<Vec<_>>().join(", ");
-            eprintln!("Usage: prefix-search [{categories}] <SEARCH_TERM>");
+            eprintln!("Usage: prefix-search [{categories}] <SEARCH_TERM> [<SEARCH_TERM>...]");
             exit(1);
         }
     };
     let category = config.categories.get(&opts.search_category).ok_or(Error::CategoryNotFound(opts.search_category))?;
-    let term = opts.search_term;
+    let mut terms = opts.search_terms;
+    // longest term first
+    terms.sort_by(|a, b| b.len().cmp(&a.len()));
 
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
 
@@ -73,18 +76,21 @@ fn main() -> Result<()> {
         for path in paths {
             let filename = path.file_name().ok_or(Error::CouldntGetFileName(path.clone()))?;
             let filename = filename.to_string_lossy();
-            if filename.starts_with(&term) {
-                let matched_str = &filename[0..term.len()];
-                let unmatched_str = &filename[term.len()..];
+            for term in &terms {
+                if filename.starts_with(&*term) {
+                    let matched_str = &filename[0..term.len()];
+                    let unmatched_str = &filename[term.len()..];
 
-                stdout.set_color(&matched_color)?;
-                write!(&mut stdout, "{}", matched_str)?;
-                stdout.set_color(&unmatched_color)?;
-                write!(&mut stdout, "{}", unmatched_str)?;
-                stdout.set_color(&path_color)?;
-                writeln!(&mut stdout, " ({})", path.display())?;
-                stdout.reset()?;
-                n_found += 1;
+                    stdout.set_color(&matched_color)?;
+                    write!(&mut stdout, "{}", matched_str)?;
+                    stdout.set_color(&unmatched_color)?;
+                    write!(&mut stdout, "{}", unmatched_str)?;
+                    stdout.set_color(&path_color)?;
+                    writeln!(&mut stdout, " ({})", path.display())?;
+                    stdout.reset()?;
+                    n_found += 1;
+                    break;
+                }
             }
         }
     }
