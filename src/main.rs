@@ -1,4 +1,4 @@
-use std::{fs, collections::HashMap, path::{Path, PathBuf}, process::exit, io::Write};
+use std::{fs, collections::{HashMap, HashSet}, path::{Path, PathBuf}, process::exit, io::Write};
 use anyhow::Result;
 use dirs::config_dir;
 use serde::{Deserialize, Serialize};
@@ -53,6 +53,7 @@ fn main() -> Result<()> {
         }
     };
     let category = config.categories.get(&opts.search_category).ok_or(Error::CategoryNotFound(opts.search_category))?;
+    let mut seen_terms = HashSet::new();
     let mut terms = opts.search_terms;
     // longest term first
     terms.sort_by(|a, b| b.len().cmp(&a.len()));
@@ -89,12 +90,16 @@ fn main() -> Result<()> {
                     writeln!(&mut stdout, " ({})", path.display())?;
                     stdout.reset()?;
                     n_found += 1;
+
+                    seen_terms.insert(term.clone());
                     break;
                 }
             }
         }
     }
+    let unseen_terms = terms.into_iter().filter(|term| !seen_terms.contains(term));
     println!("Found {} files", n_found);
+    println!("Unmet search terms: {}", unseen_terms.collect::<Vec<_>>().join(" "));
     Ok(())
 }
 
