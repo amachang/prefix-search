@@ -37,6 +37,8 @@ struct Opts {
     search_category: String,
     #[clap(required = true)]
     search_terms: Vec<String>,
+    #[clap(short, long, help = "To use the command in shell's if-else condition")]
+    question: bool,
 }
 
 fn main() -> Result<()> {
@@ -48,10 +50,14 @@ fn main() -> Result<()> {
         Ok(opts) => opts,
         Err(_) => {
             let categories = config.categories.keys().cloned().collect::<Vec<_>>().join(", ");
-            eprintln!("Usage: prefix-search [{categories}] <SEARCH_TERM> [<SEARCH_TERM>...]");
+            eprintln!("Usage: prefix-search [{categories}] [-q] <SEARCH_TERM> [<SEARCH_TERM>...]");
             exit(1);
         }
     };
+    let quiet = opts.question;
+    let use_failed_exit_code_if_no_match = opts.question;
+    let only_first_match = opts.question;
+
     let category = config.categories.get(&opts.search_category).ok_or(Error::CategoryNotFound(opts.search_category))?;
     let mut seen_terms = HashSet::new();
     let mut terms = opts.search_terms;
@@ -82,24 +88,43 @@ fn main() -> Result<()> {
                     let matched_str = &filename[0..term.len()];
                     let unmatched_str = &filename[term.len()..];
 
-                    stdout.set_color(&matched_color)?;
-                    write!(&mut stdout, "{}", matched_str)?;
-                    stdout.set_color(&unmatched_color)?;
-                    write!(&mut stdout, "{}", unmatched_str)?;
-                    stdout.set_color(&path_color)?;
-                    writeln!(&mut stdout, " ({})", path.display())?;
-                    stdout.reset()?;
-                    n_found += 1;
+                    if !quiet {
+                        stdout.set_color(&matched_color)?;
+                        write!(&mut stdout, "{}", matched_str)?;
+                        stdout.set_color(&unmatched_color)?;
+                        write!(&mut stdout, "{}", unmatched_str)?;
+                        stdout.set_color(&path_color)?;
+                        writeln!(&mut stdout, " ({})", path.display())?;
+                        stdout.reset()?;
+                    }
 
+                    n_found += 1;
                     seen_terms.insert(term.clone());
                     break;
                 }
             }
+            if only_first_match && n_found > 0 {
+                break;
+            }
         }
     }
     let unseen_terms = terms.into_iter().filter(|term| !seen_terms.contains(term));
-    println!("Found {} files", n_found);
-    println!("Unmet search terms: {}", unseen_terms.collect::<Vec<_>>().join(" "));
+    let unseen_terms = unseen_terms.collect::<HashSet<_>>();
+    if !quiet {
+        println!("Found {} files", n_found);
+        if !unseen_terms.is_empty() {
+            println!("Unmet search terms: {}", unseen_terms.iter().cloned().collect::<Vec<_>>().join(" "));
+        }
+    }
+
+    if use_failed_exit_code_if_no_match {
+        if n_found > 0 {
+            exit(0);
+        } else {
+            exit(1);
+        }
+    }
+
     Ok(())
 }
 
