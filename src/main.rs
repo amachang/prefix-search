@@ -153,7 +153,7 @@ fn walk_dir(dir: impl AsRef<Path>) -> Vec<PathBuf> {
     let iter = match fs::read_dir(dir.as_ref()) {
         Ok(iter) => iter,
         Err(err) => {
-            eprintln!("Ignoring error {} in {}", err, dir.as_ref().display());
+            log::warn!("Ignoring error {} in {}", err, dir.as_ref().display());
             return paths;
         }
     };
@@ -161,7 +161,7 @@ fn walk_dir(dir: impl AsRef<Path>) -> Vec<PathBuf> {
         let entry = match entry {
             Ok(entry) => entry,
             Err(err) => {
-                eprintln!("Ignoring error {} in {}", err, dir.as_ref().display());
+                log::warn!("Ignoring error {} in {}", err, dir.as_ref().display());
                 continue;
             }
         };
