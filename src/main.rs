@@ -93,8 +93,9 @@ fn main() -> Result<()> {
                         stdout.set_color(&unmatched_color)?;
                         write!(&mut stdout, "{}", unmatched_str)?;
                         stdout.set_color(&path_color)?;
-                        writeln!(&mut stdout, " ({})", path.display())?;
+                        write!(&mut stdout, " ({})", path.display())?;
                         stdout.reset()?;
+                        writeln!(&mut stdout)?;
                     }
 
                     n_found += 1;
