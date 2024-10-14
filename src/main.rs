@@ -43,8 +43,7 @@ struct Opts {
 
 fn main() -> Result<()> {
     env_logger::init();
-    jdt::use_from(crate_name!());
-    let config = jdt::config::<Config>();
+    let config = jdt::project(crate_name!()).config::<Config>();
 
     log::debug!("Config: {:#?}", config);
 
